@@ -1,0 +1,1 @@
+sagemaker_workflow_augmented_ai_arn = "arn:aws:sagemaker:us-east-1:203918875586:flow-definition/doc-to-db"
