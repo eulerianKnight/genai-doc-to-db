@@ -1,15 +1,9 @@
-# Lambda Layer for Pillow library
-data "archive_file" "pillow_layer_package" {
-  type        = "zip"
-  source_dir  = "${path.module}/deploy_code/multipagepdfa2i_imageresize/lambda_layer"
-  output_path = "${path.module}/files/pillow_layer_package.zip"
-}
-
-resource "aws_lambda_layer_version" "pillow_layer" {
-  layer_name          = "PillowLayer"
-  filename            = data.archive_file.pillow_layer_package.output_path
-  source_code_hash    = data.archive_file.pillow_layer_package.output_base64sha256
-  compatible_runtimes = ["python3.12"]
+# Lambda Layer for Sharp
+resource "aws_lambda_layer_version" "sharp_layer" {
+  filename            = "${path.module}/files/sharp-layer.zip"
+  layer_name          = "sharplayer"
+  compatible_runtimes = ["nodejs20.x"]
+  description         = "sharplayer"
 }
 
 # Archive files for Lambda functions
@@ -45,7 +39,7 @@ data "archive_file" "inserttodynamodb" {
 
 data "archive_file" "imageresize" {
   type        = "zip"
-  source_dir  = "${path.module}/deploy_code/multipagepdfa2i_imageresize/lambda"
+  source_dir  = "${path.module}/deploy_code/multipagepdfa2i_imageresize/"
   output_path = "${path.module}/files/imageresize.zip"
 }
 
@@ -135,21 +129,18 @@ resource "aws_lambda_function" "inserttodynamodb" {
   }
 }
 
+# Lambda Function for imageresize
 resource "aws_lambda_function" "imageresize" {
   filename         = data.archive_file.imageresize.output_path
+  source_code_hash = data.archive_file.imageresize.output_base64sha256
   function_name    = "multipagepdfa2i_imageresize"
-  role             = aws_iam_role.lambda_imageresize.arn
-  handler          = "lambda_function.lambda_handler"
-  runtime          = "python3.12"
-  memory_size      = 512
-  timeout          = 30
-  layers = [aws_lambda_layer_version.pillow_layer.arn]
-  package_type = "Zip"
+  role            = aws_iam_role.lambda_imageresize.arn
+  handler         = "index.handler"
+  runtime         = "nodejs20.x"
+  timeout         = 900  # 15 minutes
+  memory_size     = 3000
 
-  environment {
-    variables = {
-    }
-  }
+  layers = [aws_lambda_layer_version.sharp_layer.arn]
 }
 
 

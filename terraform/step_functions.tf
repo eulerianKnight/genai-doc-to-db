@@ -161,7 +161,7 @@ resource "aws_sfn_state_machine" "multipagepdfa2i" {
   })
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.stepfunctions.arn}:*"
-    level = "ALL"
+    level                 = "ALL"
     include_execution_data = true
   }
 }

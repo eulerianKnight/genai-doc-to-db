@@ -231,10 +231,9 @@ resource "aws_iam_role" "step_functions" {
   })
 }
 
-# Step Functions IAM Policy
-
-resource "aws_iam_role_policy" "step_functions" {
-  name = "multipagepdfa2i_stepfunctions_policy"
+# Separate CloudWatch Logs policy
+resource "aws_iam_role_policy" "step_functions_cloudwatch" {
+  name = "multipagepdfa2i_stepfunctions_cloudwatch_policy"
   role = aws_iam_role.step_functions.id
 
   policy = jsonencode({
@@ -250,12 +249,7 @@ resource "aws_iam_role_policy" "step_functions" {
           "logs:ListLogDeliveries",
           "logs:PutResourcePolicy",
           "logs:DescribeResourcePolicies",
-          "logs:DescribeLogGroups",
-          "logs:PutLogEvents",
-          "logs:CreateLogStream",
-          "logs:CreateLogGroup",
-          "logs:PutDestination",
-          "logs:PutDestinationPolicy"
+          "logs:DescribeLogGroups"
         ]
         Resource = "*"
       },
@@ -263,11 +257,22 @@ resource "aws_iam_role_policy" "step_functions" {
         Effect = "Allow"
         Action = [
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:CreateLogGroup"
+          "logs:PutLogEvents"
         ]
-        Resource = "*"
-      },
+        Resource = "${aws_cloudwatch_log_group.stepfunctions.arn}:*"
+      }
+    ]
+  })
+}
+
+# Main Step Functions policy for other permissions
+resource "aws_iam_role_policy" "step_functions" {
+  name = "multipagepdfa2i_stepfunctions_policy"
+  role = aws_iam_role.step_functions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
       {
         Effect = "Allow"
         Action = ["sqs:SendMessage"]
@@ -290,20 +295,24 @@ resource "aws_iam_role_policy" "step_functions" {
   })
 }
 
-# Image Resize Lambda Role
+# IAM role for the Lambda function
 resource "aws_iam_role" "lambda_imageresize" {
-  name = "multipagepdfa2i_lam_role_imageresize"
+  name = "multipagepdfa2i_imageresize_role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "lambda.amazonaws.com"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
       }
-    }]
+    ]
   })
 }
+
 
 resource "aws_iam_role_policy" "lambda_imageresize" {
   name = "multipagepdfa2i_lambda_imageresize_policy"
