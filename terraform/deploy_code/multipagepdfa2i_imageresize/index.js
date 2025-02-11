@@ -37,11 +37,12 @@ exports.handler = async (event, context) => {
       });
       console.log("Resized image uploaded successfully.");
       return {
-        statusCode: '301',
-        headers: {
-          'location': `${srcBucket}/${dstKey}`, // Adjust if needed
-        },
-        body: '',
+        pages: [{
+          id: id,
+          bucket: srcBucket,
+          key: event.key,
+          wip_key: `wip/${id}/${imageKeys[0]}/0.${extension}`
+        }]
       };
     } catch (error) {
       console.error("Error:", error);
@@ -78,11 +79,12 @@ exports.handler = async (event, context) => {
       await Promise.all(uploadPromises);
       console.log("Resized images uploaded successfully.");
       return {
-        statusCode: '301',
-        headers: {
-          'location': `${srcBucket}/wip/${id}`, // Adjust if needed
-        },
-        body: '',
+        pages: imageKeys.map((imageKey, index) => ({
+          id: id,
+          bucket: srcBucket,
+          key: event.key,
+          wip_key: `wip/${id}/${imageKey}.png`
+        }))
       };
     } catch (error) {
       console.error("Error:", error);

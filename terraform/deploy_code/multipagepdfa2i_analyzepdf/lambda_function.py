@@ -182,46 +182,50 @@ def run_analyze_document(event):
     return haiku_results, s3_path, validate_business_rules(kv_pairs)
         
 def lambda_handler(event, context):
-    for record in event["Records"]:
-        
-        body = json.loads(record["body"])
-        if body["wip_key"] == "single_image":
-            body["process_key"] = "wip/" + body["id"] + "/" + body["wip_key"] + "/" + "0.png"
-            body["human_loop_id"] = body["id"] + "i0"
-            body["s3_location"] = "wip/" + body["id"] + "/0.png/ai/output.json"
-        else:
-            body["process_key"] = "wip/" + body["id"] + "/" + body["wip_key"] + ".png"
-            body["human_loop_id"] = body["id"] + "i" + body["wip_key"]
-            body["s3_location"] = body["process_key"] + "/ai/output.json"
+    # Check if the event is from SQS or Step Functions
+    if "Records" in event:
+        # Handle SQS events
+        for record in event["Records"]:
+            body = json.loads(record["body"])
+            process_document(body)
             
-        
-        response, s3path, validate_business_rules = run_analyze_document(body)
-        
-        if validate_business_rules:
-            data_dict = json.loads(response)
-            write_ai_response_to_bucket(body, data_dict)
-            response = invoke_to_get_back_to_stepfunction(body)
-        else:
-            # Set flag for human review if validation fails
-            #need_to_human_review = True 
-            # Start human loop if validation passes
-            # Convert the string to a dictionary
-            data_dict = json.loads(response)
-            
-            # Add the "s3path" key-value pair
-            data_dict["taskObject"] = s3path
-            
-            # Convert the modified dictionary back to a string
-            updated_data_str = json.dumps(data_dict, indent=4)
-            
-            write_ai_response_to_bucket(body, data_dict)
-            response = start_human_loop(body["human_loop_id"], os.environ['human_workflow_arn'],updated_data_str)            
-            responsetoken = dump_task_token_in_dynamodb(body)
-
-        client = boto3.client('sqs')
-        response = client.delete_message(
-            QueueUrl=os.environ['sqs_url'],
-            ReceiptHandle=record["receiptHandle"]
-        )
-
+            # Delete SQS message
+            client = boto3.client('sqs')
+            response = client.delete_message(
+                QueueUrl=os.environ['sqs_url'],
+                ReceiptHandle=record["receiptHandle"]
+            )
+    else:
+        # Handle direct invocation from Step Functions
+        process_document(event)
+    
     return "all_done"
+
+def process_document(body):
+    # Extract existing processing logic into separate function
+    if "wip_key" not in body:
+        body["wip_key"] = os.path.basename(body["key"])
+        
+    if body["wip_key"] == "single_image":
+        body["process_key"] = "wip/" + body["id"] + "/" + body["wip_key"] + "/" + "0.png"
+        body["human_loop_id"] = body["id"] + "i0"
+        body["s3_location"] = "wip/" + body["id"] + "/0.png/ai/output.json"
+    else:
+        body["process_key"] = "wip/" + body["id"] + "/" + body["wip_key"] + ".png"
+        body["human_loop_id"] = body["id"] + "i" + body["wip_key"]
+        body["s3_location"] = body["process_key"] + "/ai/output.json"
+    
+    response, s3path, validate_business_rules = run_analyze_document(body)
+    
+    if validate_business_rules:
+        data_dict = json.loads(response)
+        write_ai_response_to_bucket(body, data_dict)
+        response = invoke_to_get_back_to_stepfunction(body)
+    else:
+        data_dict = json.loads(response)
+        data_dict["taskObject"] = s3path
+        updated_data_str = json.dumps(data_dict, indent=4)
+        
+        write_ai_response_to_bucket(body, data_dict)
+        response = start_human_loop(body["human_loop_id"], os.environ['human_workflow_arn'], updated_data_str)            
+        responsetoken = dump_task_token_in_dynamodb(body)

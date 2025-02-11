@@ -95,14 +95,31 @@ resource "aws_sfn_state_machine" "multipagepdfa2i" {
               Parameters = {
                 QueueUrl = aws_sqs_queue.bedrock_queue.url
                 MessageBody = {
-                  "token.$": "$$.Task.Token"
+                  "taskToken.$": "$$.Task.Token"
                   "id.$": "$.id"
                   "bucket.$": "$.bucket"
                   "key.$": "$.key"
                   "wip_key.$": "$.wip_key"
+                  "type": "analyze_pdf"  # Add a type identifier
+                }
+                # Add MessageAttributes if needed
+                MessageAttributes = {
+                  "TaskType": {
+                    DataType = "String"
+                    StringValue = "analyze_pdf"
+                  }
                 }
               }
               End = true
+              TimeoutSeconds = 3600  # Add timeout to prevent infinite waiting
+              Retry = [
+                {
+                  ErrorEquals = ["States.Timeout", "States.TaskFailed"],
+                  IntervalSeconds = 2,
+                  MaxAttempts = 3,
+                  BackoffRate = 2.0
+                }
+              ]
             }
           }
         }
