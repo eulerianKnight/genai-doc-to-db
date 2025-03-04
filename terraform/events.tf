@@ -3,7 +3,8 @@ locals {
   file_extensions = [
     "pdf", "pDf", "pDF", "pdF", "PDF", "Pdf",
     "png", "pNg", "pNG", "pnG", "PNG", "Png",
-    "jpg", "jPg", "jPG", "jpG", "JPG", "Jpg"
+    "jpg", "jPg", "jPG", "jpG", "JPG", "Jpg",
+    "json"
   ]
 }
 
